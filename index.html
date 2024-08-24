@@ -1,20 +1,126 @@
-<!doctype html>
-<HTML>
-<HEAD>
-<meta charset="UTF-8">
-<title>JavaScriptの基礎</title>
-</HEAD>
-<BODY>
-<script type="text/javascript">
-today = new Date();
-document.write(today);
-document.write(“<h1>コンピュータグラフィックス</h1>");
-document.write("<p>担当 中村直人</p>");
-document.write(“<p>この授業では、WebGLを用いてコンピュータグラフィックス
-を作成します。</p>");
-var image = new Image(128,128); //image オブジェクトの作成
-image.src = "ganba.png"; //imageのソースの指定
-document.body.appendChild(image); //imageをDOM要素に組み込む
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Santa Claus Animation with Snow and Background</title>
+</head>
+<body>
+<canvas id="webgl-canvas"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+    // シーン、カメラ、レンダラーの設定
+    const scene = new THREE.Scene();
+    
+    // 背景テクスチャを読み込む
+    const textureLoader = new THREE.TextureLoader();
+    const backgroundTexture = textureLoader.load('https://pbs.twimg.com/media/GHaX9xrawAAYDnD?format=jpg&name=large');
+    scene.background = backgroundTexture;
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('webgl-canvas') });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    camera.position.z = 100;  // カメラをもう少し近づける
+
+    // サンタクロースのモデルを作成
+    const santaBodyGeometry = new THREE.CylinderGeometry(5, 5, 15, 32);
+    const santaBodyMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const santaBody = new THREE.Mesh(santaBodyGeometry, santaBodyMaterial);
+    santaBody.position.y = 0;
+    scene.add(santaBody);
+
+    const santaHeadGeometry = new THREE.SphereGeometry(5, 32, 32);
+    const santaHeadMaterial = new THREE.MeshBasicMaterial({ color: 0xffcc99 });
+    const santaHead = new THREE.Mesh(santaHeadGeometry, santaHeadMaterial);
+    santaHead.position.y = 10;
+    scene.add(santaHead);
+
+    const hatGeometry = new THREE.ConeGeometry(6, 8, 32);
+    const hatMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const hat = new THREE.Mesh(hatGeometry, hatMaterial);
+    hat.position.y = 15;
+    hat.rotation.x = Math.PI;
+    scene.add(hat);
+
+    const beltGeometry = new THREE.RingGeometry(6, 6.5, 32);
+    const beltMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const belt = new THREE.Mesh(beltGeometry, beltMaterial);
+    belt.position.y = -2;
+    belt.rotation.x = Math.PI / 2;
+    scene.add(belt);
+
+    const footGeometry = new THREE.CylinderGeometry(2, 4, 5, 32);
+    const footMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const foot = new THREE.Mesh(footGeometry, footMaterial);
+    foot.position.y = -10;
+    scene.add(foot);
+
+    // サンタクロースのアニメーション
+    let santaPosition = -50;
+    const santaSpeed = 0.5;
+
+    // パーティクル（雪）の設定
+    const particleCount = 10000; // 雪の量を増やす
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 200; // より広い範囲に配置
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 200;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 200;
+    }
+
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const particleMaterial = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.5,
+        opacity: 0.7,
+        transparent: true
+    });
+
+    const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particleSystem);
+
+    // アニメーション
+    function animate() {
+        requestAnimationFrame(animate);
+
+        // サンタクロースが画面を横断するアニメーション
+        santaPosition += santaSpeed;
+        if (santaPosition > 50) {
+            santaPosition = -50; // 画面の左端から再スタート
+        }
+
+        santaBody.position.x = santaPosition;
+        santaHead.position.x = santaPosition;
+        hat.position.x = santaPosition;
+        belt.position.x = santaPosition;
+        foot.position.x = santaPosition;
+
+        // パーティクル（雪）の動き
+        const positions = particleGeometry.attributes.position.array;
+        for (let i = 0; i < particleCount; i++) {
+            positions[i * 3 + 1] -= 0.1; // 重力の効果
+            if (positions[i * 3 + 1] < -100) positions[i * 3 + 1] = 100; // 地面に到達したらリセット
+        }
+        particleGeometry.attributes.position.needsUpdate = true;
+
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // 自由な視点移動
+    document.addEventListener('mousemove', (event) => {
+        const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+        const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        camera.position.x += (mouseX * 10 - camera.position.x) * 0.05;
+        camera.position.y += (mouseY * 10 - camera.position.y) * 0.05;
+        camera.lookAt(scene.position);
+    });
+
 </script>
-</BODY>
-</HTML>
+</body>
+</html>
